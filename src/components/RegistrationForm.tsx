@@ -34,7 +34,34 @@ interface IssuedTicket {
   name: string;
   createdAt: string;
   qr: string;
+  phone: string;
 }
+
+/** 06 12 34 56 78 → 212612345678 ; +212 6… → 2126… (format expected by wa.me) */
+function toWhatsAppNumber(phone: string) {
+  const digits = phone.replace(/\D/g, '');
+  if (phone.trim().startsWith('+')) return digits;
+  if (digits.startsWith('00')) return digits.slice(2);
+  if (digits.startsWith('0')) return '212' + digits.slice(1);
+  return digits;
+}
+
+function ticketMessage(t: IssuedTicket) {
+  const link = `${window.location.origin}/verify?ticket=${t.code}`;
+  return (
+    `🎟️ Mon billet ${EVENT.name} ${EVENT.year}\n` +
+    `Nom : ${t.name}\n` +
+    `Code : ${t.code}\n` +
+    `Billet (QR code) : ${link}\n\n` +
+    `À présenter à l'entrée.`
+  );
+}
+
+const WhatsAppIcon = () => (
+  <svg viewBox="0 0 24 24" className="size-4" fill="currentColor" aria-hidden>
+    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm5.8 14.03c-.25.69-1.44 1.32-1.98 1.37-.51.05-.99.24-3.34-.7-2.82-1.11-4.6-3.99-4.74-4.18-.14-.18-1.13-1.5-1.13-2.87 0-1.36.71-2.03.97-2.31.25-.28.55-.35.73-.35.18 0 .37 0 .53.01.17.01.4-.06.62.48.23.55.78 1.91.85 2.05.07.14.12.3.02.48-.09.18-.14.3-.28.46-.14.16-.29.36-.42.48-.14.14-.28.29-.12.57.16.28.72 1.19 1.55 1.93 1.06.95 1.96 1.24 2.24 1.38.28.14.44.12.6-.07.16-.18.69-.81.88-1.09.18-.28.37-.23.62-.14.25.09 1.6.76 1.88.9.28.14.46.21.53.32.07.12.07.67-.18 1.36z" />
+  </svg>
+);
 
 const fieldClass =
   'h-12 rounded-xl border-border bg-background/60 text-base placeholder:text-muted-foreground/60 focus-visible:ring-primary';
@@ -101,7 +128,13 @@ export const RegistrationForm = () => {
         .catch((emailError) => console.warn('Ticket email failed:', emailError));
 
       const qr = await generateQRCodeDataURL(issued.ticket_code);
-      setTicket({ code: issued.ticket_code, name: data.fullName, createdAt: issued.created_at, qr });
+      setTicket({
+        code: issued.ticket_code,
+        name: data.fullName,
+        createdAt: issued.created_at,
+        qr,
+        phone: data.phone,
+      });
 
       await downloadTicketPDF(data.fullName, issued.ticket_code, issued.created_at);
 
@@ -189,7 +222,31 @@ export const RegistrationForm = () => {
             </div>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <a
+              href={`https://wa.me/${toWhatsAppNumber(ticket.phone)}?text=${encodeURIComponent(ticketMessage(ticket))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-bold text-black transition-transform active:scale-[0.98]"
+            >
+              <WhatsAppIcon />
+              Recevoir sur WhatsApp
+            </a>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(ticketMessage(ticket))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#25D366]/60 px-5 py-3 text-sm font-semibold text-[#25D366] transition-colors hover:bg-[#25D366]/10"
+            >
+              <WhatsAppIcon />
+              Partager
+            </a>
+          </div>
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            « Recevoir sur WhatsApp » ouvre votre conversation avec vous-même : appuyez sur Envoyer pour garder votre billet.
+          </p>
+
+          <div className="mt-4 flex flex-wrap gap-3">
             <button
               type="button"
               onClick={() => downloadTicketPDF(ticket.name, ticket.code, ticket.createdAt)}
