@@ -19,8 +19,9 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Users, CheckCircle, XCircle, ScanLine, TrendingUp } from "lucide-react";
+import { Search, Users, CheckCircle, XCircle, ScanLine, TrendingUp, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Participant {
   id: string;
@@ -39,6 +40,7 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const { signOut } = useAuth();
 
   useEffect(() => {
     fetchParticipants();
@@ -116,6 +118,10 @@ const AdminDashboard = () => {
                   QR Scanner
                 </Button>
               </Link>
+              <Button variant="ghost" className="gap-2" onClick={signOut}>
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
             </div>
           </div>
         </div>
