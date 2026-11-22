@@ -46,6 +46,7 @@ export const RegistrationForm = () => {
     formState: { errors },
     reset,
     setValue,
+    setError,
   } = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
   });
@@ -82,9 +83,32 @@ export const RegistrationForm = () => {
       });
     } catch (error: unknown) {
       console.error('Registration error:', error);
+      // Supabase errors are plain objects with a message, not Error instances.
+      const message =
+        typeof error === 'object' && error !== null && 'message' in error
+          ? String((error as { message: unknown }).message)
+          : '';
+
+      if (message.includes('EMAIL_ALREADY_REGISTERED')) {
+        setError('email', { message: 'Cet email a déjà un billet.' });
+        toast({
+          title: 'Cet email a déjà un billet',
+          description:
+            "Un seul billet par adresse email. Retrouvez votre billet dans votre boîte mail (pensez aux spams).",
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const friendly: Record<string, string> = {
+        'Invalid email': 'Adresse email invalide.',
+        'Invalid name': 'Nom invalide.',
+        'Invalid phone number': 'Numéro de téléphone invalide.',
+        'Invalid club member': 'Membre du club invalide.',
+      };
       toast({
         title: "L'inscription a échoué",
-        description: error instanceof Error ? error.message : 'Réessayez dans un instant.',
+        description: friendly[message] ?? 'Réessayez dans un instant.',
         variant: 'destructive',
       });
     } finally {
