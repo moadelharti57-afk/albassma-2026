@@ -94,15 +94,16 @@ export const RegistrationForm = () => {
       const issued = rows?.[0];
       if (!issued) throw new Error("L'inscription a échoué. Réessayez.");
 
+      // Ask for the emails first, so they're on their way while the PDF is built.
+      // The function looks up the address from the ticket on the server.
+      supabase.functions
+        .invoke('send-ticket-email', { body: { ticketCode: issued.ticket_code } })
+        .catch((emailError) => console.warn('Ticket email failed:', emailError));
+
       const qr = await generateQRCodeDataURL(issued.ticket_code);
       setTicket({ code: issued.ticket_code, name: data.fullName, createdAt: issued.created_at, qr });
 
       await downloadTicketPDF(data.fullName, issued.ticket_code, issued.created_at);
-
-      // The email function looks up the address from the ticket on the server.
-      supabase.functions
-        .invoke('send-ticket-email', { body: { ticketCode: issued.ticket_code } })
-        .catch((emailError) => console.warn('Ticket email failed:', emailError));
 
       toast({
         title: 'Billet généré !',

@@ -21,10 +21,14 @@ const NOTIFY_EMAIL = (Deno.env.get("NOTIFY_EMAIL") ?? "").trim();
 
 // Supabase Edge Functions block outgoing ports 25 and 587, so use Gmail's
 // implicit-TLS port 465.
+// pool: keep the Gmail connection open between sends, and allow two at once
+// (ticket + club notice) instead of a new TLS handshake for each email.
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
   secure: true,
+  pool: true,
+  maxConnections: 2,
   auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
 });
 
@@ -127,7 +131,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending ticket email for ticket ${participant.ticket_code}`);
 
-    const info = await transporter.sendMail({
+    // Both emails are started at once and awaited together below, so the
+    // participant's ticket and the club notice go out in parallel.
+    const ticketSend = transporter.sendMail({
       from: { name: MAIL_FROM_NAME, address: GMAIL_USER },
       to: participant.email,
       subject: "Votre billet Albassma Film 2026",
@@ -206,8 +212,8 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Club notification. A failure here must not affect the participant.
-    let notified = false;
-    if (NOTIFY_EMAIL) {
+    const notifySend = (async () => {
+      if (!NOTIFY_EMAIL) return false;
       try {
         const when = new Date(participant.created_at).toLocaleString("fr-FR", {
           timeZone: "Africa/Casablanca",
@@ -261,11 +267,14 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
             </div>`,
         });
-        notified = true;
+        return true;
       } catch (notifyError) {
         console.error("Club notification failed:", notifyError);
+        return false;
       }
-    }
+    })();
+
+    const [info, notified] = await Promise.all([ticketSend, notifySend]);
 
     return json({ success: true, id: info.messageId ?? null, notified });
   } catch (error: unknown) {
