@@ -124,6 +124,7 @@ ajoutez :
 | `GMAIL_USER` | l'adresse Gmail du club |
 | `GMAIL_APP_PASSWORD` | le code de 16 lettres |
 | `MAIL_FROM_NAME` | `Albassma Filme` (nom affiché comme expéditeur) |
+| `NOTIFY_EMAIL` | (optionnel) boîte du club qui reçoit une notification à chaque nouveau billet, ex. `albassmabillets@gmail.com` |
 | `SITE_URL` | l'adresse Vercel du site, ex. `https://albassma-2026.vercel.app` |
 
 Ou en ligne de commande :

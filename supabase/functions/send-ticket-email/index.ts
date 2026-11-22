@@ -14,6 +14,10 @@ import QRCode from "npm:qrcode@1.5.4";
 const GMAIL_USER = Deno.env.get("GMAIL_USER") ?? "";
 const GMAIL_APP_PASSWORD = (Deno.env.get("GMAIL_APP_PASSWORD") ?? "").replace(/\s+/g, "");
 const MAIL_FROM_NAME = Deno.env.get("MAIL_FROM_NAME") ?? "Albassma Filme";
+// Optional: the club inbox that gets a short notice for every new ticket
+// ("X took a ticket at 18:32"). Leave unset to turn notices off.
+//   supabase secrets set NOTIFY_EMAIL=albassmabillets@gmail.com
+const NOTIFY_EMAIL = (Deno.env.get("NOTIFY_EMAIL") ?? "").trim();
 
 // Supabase Edge Functions block outgoing ports 25 and 587, so use Gmail's
 // implicit-TLS port 465.
@@ -84,7 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
     // The recipient and name come from the database, never from the request.
     const { data: participant, error } = await admin
       .from("participants")
-      .select("full_name, email, ticket_code, created_at")
+      .select("full_name, email, phone, registered_by, ticket_code, created_at")
       .eq("ticket_code", ticketCode)
       .maybeSingle();
 
@@ -198,7 +202,59 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    return json({ success: true, id: info.messageId ?? null });
+    // Club notification. A failure here must not affect the participant.
+    let notified = false;
+    if (NOTIFY_EMAIL) {
+      try {
+        const when = new Date(participant.created_at).toLocaleString("fr-FR", {
+          timeZone: "Africa/Casablanca",
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        const row = (label: string, value: string) =>
+          `<tr><td style="padding:6px 12px 6px 0;color:#264653;font-weight:600;">${label}</td>` +
+          `<td style="padding:6px 0;color:#000;">${escapeHtml(value)}</td></tr>`;
+
+        await transporter.sendMail({
+          from: { name: MAIL_FROM_NAME, address: GMAIL_USER },
+          to: NOTIFY_EMAIL,
+          replyTo: participant.email,
+          subject: `🎟️ Nouveau billet : ${participant.full_name} (${participant.ticket_code})`,
+          text:
+            `${participant.full_name} a pris un billet.\n\n` +
+            `Email : ${participant.email}\n` +
+            `Téléphone : ${participant.phone}\n` +
+            `Invité par : ${participant.registered_by ?? "-"}\n` +
+            `Code : ${participant.ticket_code}\n` +
+            `Quand : ${when}\n`,
+          html: `
+            <div style="font-family:'Segoe UI',Tahoma,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#eaeaea;">
+              <div style="background:#ffffff;border-radius:12px;overflow:hidden;">
+                <div style="background:#32b577;height:6px;"></div>
+                <div style="padding:20px 24px;">
+                  <p style="margin:0 0 4px;color:#32b577;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Nouveau billet</p>
+                  <h2 style="margin:0 0 16px;color:#000;font-size:20px;">${fullName} a pris un billet</h2>
+                  <table style="border-collapse:collapse;font-size:14px;">
+                    ${row("Email", participant.email)}
+                    ${row("Téléphone", participant.phone)}
+                    ${row("Invité par", participant.registered_by ?? "-")}
+                    ${row("Code", participant.ticket_code)}
+                    ${row("Quand", when)}
+                  </table>
+                </div>
+              </div>
+            </div>`,
+        });
+        notified = true;
+      } catch (notifyError) {
+        console.error("Club notification failed:", notifyError);
+      }
+    }
+
+    return json({ success: true, id: info.messageId ?? null, notified });
   } catch (error: unknown) {
     console.error("Error in send-ticket-email function:", error);
     return json({ error: "Could not send the ticket email" }, 500);
