@@ -173,6 +173,11 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT, UPDATE, DELETE ON public.participants TO authenticated;
 GRANT SELECT ON public.user_roles TO authenticated;
 
+-- The email Edge Function reads tickets with the service_role key.
+GRANT USAGE ON SCHEMA public TO service_role;
+GRANT ALL ON public.participants TO service_role;
+GRANT ALL ON public.user_roles TO service_role;
+
 -- =========================================================================
 -- After running this, make yourself an admin (run in the SQL editor):
 --   1. Create the user: Authentication > Users > Add user (email + password)
