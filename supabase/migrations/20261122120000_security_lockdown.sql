@@ -167,6 +167,12 @@ GRANT EXECUTE ON FUNCTION public.check_in_ticket(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.has_role(public.app_role) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_staff() TO authenticated;
 
+-- Table access for signed-in users (row-level security still decides which
+-- rows; new Supabase projects may not grant this automatically).
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, UPDATE, DELETE ON public.participants TO authenticated;
+GRANT SELECT ON public.user_roles TO authenticated;
+
 -- =========================================================================
 -- After running this, make yourself an admin (run in the SQL editor):
 --   1. Create the user: Authentication > Users > Add user (email + password)
