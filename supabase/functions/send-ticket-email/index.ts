@@ -10,10 +10,10 @@ import QRCode from "npm:qrcode@1.5.4";
 //   supabase secrets set GMAIL_USER=club.address@gmail.com
 //   supabase secrets set GMAIL_APP_PASSWORD="abcd efgh ijkl mnop"
 // Optional display name for the sender:
-//   supabase secrets set MAIL_FROM_NAME="Albassma Filme"
+//   supabase secrets set MAIL_FROM_NAME="Albassma Film"
 const GMAIL_USER = Deno.env.get("GMAIL_USER") ?? "";
 const GMAIL_APP_PASSWORD = (Deno.env.get("GMAIL_APP_PASSWORD") ?? "").replace(/\s+/g, "");
-const MAIL_FROM_NAME = Deno.env.get("MAIL_FROM_NAME") ?? "Albassma Filme";
+const MAIL_FROM_NAME = Deno.env.get("MAIL_FROM_NAME") ?? "Albassma Film";
 // Optional: the club inbox that gets a short notice for every new ticket
 // ("X took a ticket at 18:32"). Leave unset to turn notices off.
 //   supabase secrets set NOTIFY_EMAIL=albassmabillets@gmail.com
@@ -127,7 +127,7 @@ const handler = async (req: Request): Promise<Response> => {
     const info = await transporter.sendMail({
       from: { name: MAIL_FROM_NAME, address: GMAIL_USER },
       to: participant.email,
-      subject: "Votre billet Albassma Filme 2026",
+      subject: "Votre billet Albassma Film 2026",
       text:
         `Bonjour ${participant.full_name},\n\n` +
         `Merci pour votre inscription ! Votre billet numérique est prêt.\n\n` +
@@ -156,7 +156,7 @@ const handler = async (req: Request): Promise<Response> => {
               <div style="background-color: #32b577; height: 8px;"></div><div style="background-color: #86de76; height: 3px;"></div>
               <div style="padding: 40px 30px; text-align: center;">
                 <h1 style="color: #ffffff; font-size: 32px; margin: 0 0 8px 0; letter-spacing: -0.5px;">
-                  ALBASSMA FILME 2026
+                  ALBASSMA FILM 2026
                 </h1>
                 <p style="color: #eaeaea; font-size: 14px; margin: 0 0 30px 0;">
                   Organisé par Mohandiss Al Bassma

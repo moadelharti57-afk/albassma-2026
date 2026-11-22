@@ -103,7 +103,7 @@ const AdminDashboard = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
-              <p className="text-muted-foreground">Albassma Filme - Participant Management</p>
+              <p className="text-muted-foreground">Albassma Film - Participant Management</p>
             </div>
             <div className="flex gap-2">
               <Link to="/admin/performance">

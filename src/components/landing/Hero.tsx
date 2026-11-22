@@ -133,7 +133,7 @@ export function Hero() {
           />
           <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
             <SplitText
-              text={`FILME ${EVENT.year}`}
+              text={`FILM ${EVENT.year}`}
               tag="span"
               className="font-display block text-[15vw] leading-[0.85] text-foreground sm:text-[10vw] lg:text-[min(7.4vw,7rem)]"
               textAlign="left"

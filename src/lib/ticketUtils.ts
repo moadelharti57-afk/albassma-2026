@@ -46,7 +46,7 @@ export const generateTicketPDF = async (
   pdf.setTextColor(255, 255, 255);
   pdf.setFontSize(28);
   pdf.setFont('helvetica', 'bold');
-  pdf.text('ALBASSMA FILME 2026', 74, 35, { align: 'center' });
+  pdf.text('ALBASSMA FILM 2026', 74, 35, { align: 'center' });
 
   // Club Name
   pdf.setFontSize(12);

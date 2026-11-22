@@ -51,7 +51,7 @@ function makeTicketFaceTexture(side: 'front' | 'back') {
     ctx.font = '210px Anton, Impact, sans-serif';
     ctx.fillText('ALBASSMA', 130, 420);
     ctx.font = '150px Anton, Impact, sans-serif';
-    ctx.fillText(`FILME ${EVENT.year}`, 136, 590);
+    ctx.fillText(`FILM ${EVENT.year}`, 136, 590);
 
     ctx.font = '600 34px "JetBrains Mono", monospace';
     ctx.fillStyle = inkSoft;

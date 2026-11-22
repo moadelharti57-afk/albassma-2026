@@ -1,4 +1,4 @@
-# Albassma Filme 2026 · Billetterie
+# Albassma Film 2026 · Billetterie
 
 Site de billetterie de l'événement cinéma du club **Mohandiss Al Bassma** :
 inscription en ligne, billet numérique avec QR code (PDF + email Gmail),

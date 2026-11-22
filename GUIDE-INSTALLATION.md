@@ -1,4 +1,4 @@
-# Albassma Filme 2026 · Guide d'installation
+# Albassma Film 2026 · Guide d'installation
 
 Ce guide explique comment mettre en route la billetterie : base de données,
 comptes staff, mise en ligne sur Vercel et envoi des billets par Gmail.
@@ -123,7 +123,7 @@ ajoutez :
 |---|---|
 | `GMAIL_USER` | l'adresse Gmail du club |
 | `GMAIL_APP_PASSWORD` | le code de 16 lettres |
-| `MAIL_FROM_NAME` | `Albassma Filme` (nom affiché comme expéditeur) |
+| `MAIL_FROM_NAME` | `Albassma Film` (nom affiché comme expéditeur) |
 | `NOTIFY_EMAIL` | (optionnel) boîte du club qui reçoit une notification à chaque nouveau billet, ex. `albassmabillets@gmail.com` |
 | `SITE_URL` | l'adresse Vercel du site, ex. `https://albassma-2026.vercel.app` |
 
@@ -132,7 +132,7 @@ Ou en ligne de commande :
 ```powershell
 npx supabase login
 npx supabase link --project-ref VOTRE_PROJECT_ID
-npx supabase secrets set GMAIL_USER=club@gmail.com GMAIL_APP_PASSWORD="abcd efgh ijkl mnop" MAIL_FROM_NAME="Albassma Filme" SITE_URL=https://votre-site
+npx supabase secrets set GMAIL_USER=club@gmail.com GMAIL_APP_PASSWORD="abcd efgh ijkl mnop" MAIL_FROM_NAME="Albassma Film" SITE_URL=https://votre-site
 ```
 
 ### 5.3 Déployer la fonction d'email
@@ -144,7 +144,7 @@ npx supabase functions deploy send-ticket-email --no-verify-jwt
 ### 5.4 Tester
 
 Inscrivez-vous sur le site avec votre propre adresse. Vous devez recevoir
-« Votre billet Albassma Filme 2026 » avec le QR code dans le message.
+« Votre billet Albassma Film 2026 » avec le QR code dans le message.
 Si rien n'arrive, regardez **Edge Functions > send-ticket-email > Logs**.
 
 ### Limites de Gmail

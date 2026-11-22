@@ -6,7 +6,7 @@
  */
 
 export const EVENT = {
-  name: 'Albassma Filme',
+  name: 'Albassma Film',
   edition: 'Édition 2026',
   year: 2026,
   club: 'Mohandiss Al Bassma',
