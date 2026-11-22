@@ -32,39 +32,39 @@ export function Footer() {
 
   return (
     <footer ref={root} className="relative overflow-hidden border-t border-border pt-16">
-      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+      <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-8 px-4 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div>
           <p className="font-display text-3xl">On se voit en salle.</p>
           <p className="mt-2 text-muted-foreground">
             {EVENT.dateLabel} · {EVENT.venue}
           </p>
         </div>
-        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+        <ul className="-mx-2 flex flex-wrap gap-x-2 gap-y-1 text-sm text-muted-foreground">
           <li>
-            <a href="#billet" className="hover:text-foreground">Billetterie</a>
+            <a href="#billet" className="inline-block rounded-lg px-2 py-2 transition-colors hover:text-foreground">Billetterie</a>
           </li>
           <li>
-            <Link to="/verify" className="hover:text-foreground">Vérifier un billet</Link>
+            <Link to="/verify" className="inline-block rounded-lg px-2 py-2 transition-colors hover:text-foreground">Vérifier un billet</Link>
           </li>
           {EVENT.instagram && (
             <li>
-              <a href={EVENT.instagram} target="_blank" rel="noreferrer" className="hover:text-foreground">Instagram</a>
+              <a href={EVENT.instagram} target="_blank" rel="noreferrer" className="inline-block rounded-lg px-2 py-2 transition-colors hover:text-foreground">Instagram</a>
             </li>
           )}
           {EVENT.contactEmail && (
             <li>
-              <a href={`mailto:${EVENT.contactEmail}`} className="hover:text-foreground">Contact</a>
+              <a href={`mailto:${EVENT.contactEmail}`} className="inline-block rounded-lg px-2 py-2 transition-colors hover:text-foreground">Contact</a>
             </li>
           )}
           <li>
-            <Link to="/admin/login" className="hover:text-foreground">Espace staff</Link>
+            <Link to="/admin/login" className="inline-block rounded-lg px-2 py-2 transition-colors hover:text-foreground">Espace staff</Link>
           </li>
         </ul>
       </div>
 
       <p
         aria-hidden
-        className="footer-word font-display mt-10 select-none whitespace-nowrap text-center text-[23vw] leading-[0.78] text-brand-gradient opacity-90"
+        className="footer-word pointer-events-none font-display mt-10 select-none whitespace-nowrap text-center text-[23vw] leading-[0.78] text-brand-gradient opacity-90"
       >
         Albassma
       </p>
