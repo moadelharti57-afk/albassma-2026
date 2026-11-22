@@ -36,9 +36,13 @@ mettez en ligne le nouveau site juste après (étape 3).
 
 ### 3.1 Importer le projet
 
+Le code du site est sur GitHub : https://github.com/moadelharti57-afk/albassma-2026
+(branche `main`). Si le dépôt est privé, demandez à son propriétaire de vous
+ajouter dans **Settings > Collaborators**.
+
 1. Allez sur https://vercel.com et connectez-vous avec le compte GitHub qui a accès
    au dépôt du site.
-2. **Add New… > Project**, choisissez le dépôt, puis **Import**.
+2. **Add New… > Project**, choisissez le dépôt `albassma-2026`, puis **Import**.
 3. Vercel détecte la configuration grâce au fichier `vercel.json`. Ne changez rien :
    - Framework : **Vite**
    - Build Command : `npm run build`
@@ -63,12 +67,9 @@ par exemple `https://albassma-2026.vercel.app`.
 
 ### 3.3 Branche de production
 
-Le nouveau site est sur la branche `feat/redesign-2026`. Deux possibilités :
-- **Fusionner** cette branche dans `main` sur GitHub (Pull Request > Merge) :
-  Vercel met alors en ligne automatiquement ;
-- ou, dans Vercel, **Settings > Git > Production Branch** : mettez `feat/redesign-2026`.
-
-Chaque nouveau `git push` redéploie le site automatiquement.
+Le site est sur la branche `main`, que Vercel met en ligne par défaut :
+il n'y a rien à régler. Chaque nouveau `git push` sur `main` redéploie le site
+automatiquement.
 
 ### 3.4 Vérifier
 
