@@ -104,6 +104,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const siteUrl = SITE_URL || (req.headers.get("origin") ?? "");
     const verifyUrl = `${siteUrl}/verify?ticket=${encodeURIComponent(participant.ticket_code)}`;
+    // Link for the club notification: opens the admin page with the delete
+    // confirmation for this ticket (sign-in required, nothing deleted on open).
+    const deleteUrl = `${siteUrl}/admin/tickets?supprimer=${encodeURIComponent(participant.ticket_code)}`;
     // The QR code is generated here and attached inline (cid:), so the
     // ticket code is never sent to a third-party QR service.
     const qrPng: Uint8Array = await QRCode.toBuffer(verifyUrl, {
@@ -229,7 +232,8 @@ const handler = async (req: Request): Promise<Response> => {
             `Téléphone : ${participant.phone}\n` +
             `Invité par : ${participant.registered_by ?? "-"}\n` +
             `Code : ${participant.ticket_code}\n` +
-            `Quand : ${when}\n`,
+            `Quand : ${when}\n\n` +
+            `Supprimer ce billet : ${deleteUrl}\n`,
           html: `
             <div style="font-family:'Segoe UI',Tahoma,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#eaeaea;">
               <div style="background:#ffffff;border-radius:12px;overflow:hidden;">
@@ -244,6 +248,15 @@ const handler = async (req: Request): Promise<Response> => {
                     ${row("Code", participant.ticket_code)}
                     ${row("Quand", when)}
                   </table>
+                  <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eaeaea;">
+                    <a href="${deleteUrl}"
+                       style="display:inline-block;background:#d93f3f;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 18px;border-radius:8px;">
+                      🗑️ Supprimer ce billet
+                    </a>
+                    <p style="margin:10px 0 0;color:#264653;font-size:12px;">
+                      Ouvre l'espace admin du site (connexion requise) et demande une confirmation avant de supprimer.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>`,
