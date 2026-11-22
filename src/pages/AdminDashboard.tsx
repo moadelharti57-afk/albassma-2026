@@ -19,9 +19,11 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Users, CheckCircle, XCircle, ScanLine, TrendingUp, LogOut } from "lucide-react";
+import { Search, Users, CheckCircle, XCircle, ScanLine, TrendingUp, LogOut, Download, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { EventSettingsCard } from "@/components/admin/EventSettingsCard";
+import { downloadParticipantsCsv } from "@/lib/exportCsv";
 
 interface Participant {
   id: string;
@@ -40,7 +42,7 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
 
   useEffect(() => {
     fetchParticipants();
@@ -105,7 +107,24 @@ const AdminDashboard = () => {
               <h1 className="text-2xl font-bold text-foreground">Admin Dashboard</h1>
               <p className="text-muted-foreground">Albassma Film - Participant Management</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => downloadParticipantsCsv(participants)}
+                disabled={participants.length === 0}
+              >
+                <Download className="h-4 w-4" />
+                Exporter CSV
+              </Button>
+              {isAdmin && (
+                <Link to="/admin/tickets">
+                  <Button variant="outline" className="gap-2">
+                    <Trash2 className="h-4 w-4" />
+                    Gérer les billets
+                  </Button>
+                </Link>
+              )}
               <Link to="/admin/performance">
                 <Button variant="outline" className="gap-2">
                   <TrendingUp className="h-4 w-4" />
@@ -128,6 +147,8 @@ const AdminDashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        <EventSettingsCard ticketsIssued={participants.length} />
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <Card>

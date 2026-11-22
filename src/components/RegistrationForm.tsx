@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,13 +12,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ClickSpark from '@/components/reactbits/ClickSpark';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Download, RotateCcw } from 'lucide-react';
+import { Loader2, Download, RotateCcw, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const registrationSchema = z.object({
   fullName: z.string().trim().min(2, 'Au moins 2 caractères').max(100),
   email: z.string().trim().email('Adresse email invalide').max(255),
-  phone: z.string().trim().min(8, 'Au moins 8 chiffres').max(20),
+  phone: z
+    .string()
+    .trim()
+    .max(20)
+    .regex(/^\+?[0-9][0-9 .-]*[0-9]$/, 'Chiffres uniquement (ex. 06 12 34 56 78)')
+    .refine((v) => v.replace(/\D/g, '').length >= 8, 'Au moins 8 chiffres'),
   registeredBy: z.string().min(1, 'Choisissez un membre du club'),
 });
 
@@ -34,11 +39,32 @@ interface IssuedTicket {
 const fieldClass =
   'h-12 rounded-xl border-border bg-background/60 text-base placeholder:text-muted-foreground/60 focus-visible:ring-primary';
 
+type Availability = 'loading' | 'open' | 'closed' | 'sold_out';
+
 export const RegistrationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ticket, setTicket] = useState<IssuedTicket | null>(null);
+  const [availability, setAvailability] = useState<Availability>('loading');
+  const [seatsLeft, setSeatsLeft] = useState<number | null>(null);
+  // Anti-bot trap: a field humans never see. Bots that fill every input get caught.
+  const [honeypot, setHoneypot] = useState('');
   const { toast } = useToast();
   const reduce = useReducedMotion();
+
+  useEffect(() => {
+    let alive = true;
+    supabase.rpc('get_registration_status').then(({ data, error }) => {
+      if (!alive) return;
+      const s = data?.[0];
+      // If the status can't be read, let people try: the server still enforces the rules.
+      if (error || !s) return setAvailability('open');
+      setSeatsLeft(s.seats_left);
+      setAvailability(!s.registrations_open ? 'closed' : s.seats_left === 0 ? 'sold_out' : 'open');
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const {
     register,
@@ -52,6 +78,7 @@ export const RegistrationForm = () => {
   });
 
   const onSubmit = async (data: RegistrationFormData) => {
+    if (honeypot) return; // silently ignore bots
     setIsSubmitting(true);
 
     try {
@@ -88,6 +115,11 @@ export const RegistrationForm = () => {
         typeof error === 'object' && error !== null && 'message' in error
           ? String((error as { message: unknown }).message)
           : '';
+
+      if (message.includes('SOLD_OUT') || message.includes('REGISTRATIONS_CLOSED')) {
+        setAvailability(message.includes('SOLD_OUT') ? 'sold_out' : 'closed');
+        return;
+      }
 
       if (message.includes('EMAIL_ALREADY_REGISTERED')) {
         setError('email', { message: 'Cet email a déjà un billet.' });
@@ -175,6 +207,27 @@ export const RegistrationForm = () => {
             </button>
           </div>
         </motion.div>
+      ) : availability === 'closed' || availability === 'sold_out' ? (
+        <motion.div
+          key="unavailable"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="glass rounded-[2rem] p-8 text-center"
+          role="status"
+        >
+          <span className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <Lock className="size-6" aria-hidden />
+          </span>
+          <h3 className="font-display text-4xl">
+            {availability === 'sold_out' ? 'Complet !' : 'Inscriptions fermées'}
+          </h3>
+          <p className="mx-auto mt-3 max-w-sm text-muted-foreground">
+            {availability === 'sold_out'
+              ? 'Toutes les places ont été réservées. Merci pour votre enthousiasme, à la prochaine édition !'
+              : 'Les inscriptions sont fermées pour le moment. Suivez le club pour les prochaines annonces.'}
+          </p>
+        </motion.div>
       ) : (
         <motion.form
           key="form"
@@ -185,6 +238,26 @@ export const RegistrationForm = () => {
           className="glass space-y-5 rounded-[2rem] p-6 sm:p-8"
           noValidate
         >
+          {/* Anti-bot trap: hidden from people and screen readers */}
+          <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+            <label htmlFor="website">Site web</label>
+            <input
+              id="website"
+              name="website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
+
+          {seatsLeft !== null && seatsLeft <= 50 && (
+            <p className="rounded-xl bg-primary/10 px-4 py-2 text-center text-sm font-semibold text-primary">
+              Plus que {seatsLeft} place{seatsLeft > 1 ? 's' : ''} disponible{seatsLeft > 1 ? 's' : ''} !
+            </p>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="fullName">Nom complet</Label>
             <Input

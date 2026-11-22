@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      event_settings: {
+        Row: {
+          id: number
+          max_tickets: number | null
+          registrations_open: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          max_tickets?: number | null
+          registrations_open?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          max_tickets?: number | null
+          registrations_open?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       participants: {
         Row: {
           created_at: string
@@ -73,6 +94,15 @@ export type Database = {
       check_in_ticket: {
         Args: { _ticket_code: string }
         Returns: boolean
+      }
+      get_registration_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          max_tickets: number | null
+          registrations_open: boolean
+          seats_left: number | null
+          tickets_issued: number
+        }[]
       }
       has_role: {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
