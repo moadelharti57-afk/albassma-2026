@@ -176,7 +176,7 @@ const AgentPerformance = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                        index === 0 ? 'bg-yellow-500/20 text-yellow-600' :
+                        index === 0 ? 'bg-accent/20 text-accent' :
                         index === 1 ? 'bg-gray-300/30 text-gray-600' :
                         index === 2 ? 'bg-orange-400/20 text-orange-600' :
                         'bg-muted text-muted-foreground'

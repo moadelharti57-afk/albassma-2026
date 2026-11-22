@@ -95,8 +95,14 @@ export default {
   			'2xl': 'var(--shadow-2xl)'
   		},
   		fontFamily: {
+  			display: [
+  				'Anton',
+  				'Impact',
+  				'Arial Narrow',
+  				'sans-serif'
+  			],
   			sans: [
-  				'Work Sans',
+  				'Manrope',
   				'ui-sans-serif',
   				'system-ui',
   				'-apple-system',
@@ -118,7 +124,7 @@ export default {
   				'serif'
   			],
   			mono: [
-  				'Inconsolata',
+  				'JetBrains Mono',
   				'ui-monospace',
   				'SFMono-Regular',
   				'Menlo',

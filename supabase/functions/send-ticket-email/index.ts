@@ -1,109 +1,196 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.86.0";
+// @deno-types="npm:@types/nodemailer@6.4.17"
+import nodemailer from "npm:nodemailer@6.9.16";
+// @deno-types="npm:@types/qrcode@1.5.5"
+import QRCode from "npm:qrcode@1.5.4";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Tickets are sent from a Gmail account using a Google "app password".
+// Set them with:
+//   supabase secrets set GMAIL_USER=club.address@gmail.com
+//   supabase secrets set GMAIL_APP_PASSWORD="abcd efgh ijkl mnop"
+// Optional display name for the sender:
+//   supabase secrets set MAIL_FROM_NAME="Albassma Filme"
+const GMAIL_USER = Deno.env.get("GMAIL_USER") ?? "";
+const GMAIL_APP_PASSWORD = (Deno.env.get("GMAIL_APP_PASSWORD") ?? "").replace(/\s+/g, "");
+const MAIL_FROM_NAME = Deno.env.get("MAIL_FROM_NAME") ?? "Albassma Filme";
+
+// Supabase Edge Functions block outgoing ports 25 and 587, so use Gmail's
+// implicit-TLS port 465.
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD },
+});
+
+// The service-role client can read participants despite row-level security.
+// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
+const admin = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+);
+
+// Public address of the site, e.g. https://tickets.example.com
+// Set it with: supabase secrets set SITE_URL=https://your-site
+const SITE_URL = (Deno.env.get("SITE_URL") ?? "").replace(/\/+$/, "");
+
+// Only send for tickets created this recently, so the endpoint can't be used
+// to spam people with repeat emails.
+const SEND_WINDOW_MINUTES = 15;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface TicketEmailRequest {
-  email: string;
-  fullName: string;
-  ticketCode: string;
-  createdAt: string;
-}
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
+  }
+
+  if (!GMAIL_USER || !GMAIL_APP_PASSWORD) {
+    console.error("GMAIL_USER / GMAIL_APP_PASSWORD secrets are not set");
+    return json({ error: "Email sending is not configured" }, 500);
+  }
 
   try {
-    const { email, fullName, ticketCode, createdAt }: TicketEmailRequest = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const ticketCode = typeof body?.ticketCode === "string"
+      ? body.ticketCode.trim().toUpperCase()
+      : "";
 
-    console.log(`Sending ticket email to ${email} for ticket ${ticketCode}`);
+    if (!/^[A-Z0-9_-]{6,32}$/.test(ticketCode)) {
+      return json({ error: "Invalid ticket code" }, 400);
+    }
 
-    const formattedDate = new Date(createdAt).toLocaleDateString("en-US", {
+    // The recipient and name come from the database, never from the request.
+    const { data: participant, error } = await admin
+      .from("participants")
+      .select("full_name, email, ticket_code, created_at")
+      .eq("ticket_code", ticketCode)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!participant) {
+      return json({ error: "Ticket not found" }, 404);
+    }
+
+    const ageMinutes = (Date.now() - new Date(participant.created_at).getTime()) / 60000;
+    if (ageMinutes > SEND_WINDOW_MINUTES) {
+      return json({ error: "Ticket email can only be sent right after registration" }, 403);
+    }
+
+    const siteUrl = SITE_URL || (req.headers.get("origin") ?? "");
+    const verifyUrl = `${siteUrl}/verify?ticket=${encodeURIComponent(participant.ticket_code)}`;
+    // The QR code is generated here and attached inline (cid:), so the
+    // ticket code is never sent to a third-party QR service.
+    const qrPng: Uint8Array = await QRCode.toBuffer(verifyUrl, {
+      type: "png",
+      width: 400,
+      margin: 2,
+      color: { dark: "#000000", light: "#ffffff" },
+    });
+
+    const fullName = escapeHtml(participant.full_name);
+    const code = escapeHtml(participant.ticket_code);
+    const formattedDate = new Date(participant.created_at).toLocaleDateString("fr-FR", {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
 
-    // Generate QR code URL using a free QR code API
-    const verifyUrl = `https://quvhrkikcabyjepyavgb.supabase.co/functions/v1/verify?ticket=${ticketCode}`;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`;
+    console.log(`Sending ticket email for ticket ${participant.ticket_code}`);
 
-    const emailResponse = await resend.emails.send({
-      from: "Albassma Filme <ticketsalbassma@zayna.shop>",
-      to: [email],
-      subject: "Your Albassma Filme Ticket",
+    const info = await transporter.sendMail({
+      from: { name: MAIL_FROM_NAME, address: GMAIL_USER },
+      to: participant.email,
+      subject: "Votre billet Albassma Filme 2026",
+      text:
+        `Bonjour ${participant.full_name},\n\n` +
+        `Merci pour votre inscription ! Votre billet numérique est prêt.\n\n` +
+        `Code du billet : ${participant.ticket_code}\n` +
+        `Votre billet : ${verifyUrl}\n\n` +
+        `Présentez le QR code à l'entrée.\n\n` +
+        `Mohandiss Al Bassma`,
+      attachments: [
+        {
+          filename: `billet-${participant.ticket_code}.png`,
+          content: qrPng,
+          contentType: "image/png",
+          cid: "ticket-qr",
+        },
+      ],
       html: `
         <!DOCTYPE html>
-        <html>
+        <html lang="fr">
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
         </head>
-        <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+        <body style="margin: 0; padding: 0; background-color: #eaeaea; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
           <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-            <div style="background-color: #0f172a; border-radius: 16px; overflow: hidden;">
-              <!-- Header -->
-              <div style="background-color: #059669; padding: 4px;"></div>
-              
-              <!-- Content -->
+            <div style="background-color: #264653; border-radius: 16px; overflow: hidden;">
+              <div style="background-color: #32b577; height: 8px;"></div><div style="background-color: #86de76; height: 3px;"></div>
               <div style="padding: 40px 30px; text-align: center;">
                 <h1 style="color: #ffffff; font-size: 32px; margin: 0 0 8px 0; letter-spacing: -0.5px;">
-                  ALBASSMA FILME
+                  ALBASSMA FILME 2026
                 </h1>
-                <p style="color: #9ca3af; font-size: 14px; margin: 0 0 30px 0;">
-                  Organized by Mohandiss Al Bassma
+                <p style="color: #eaeaea; font-size: 14px; margin: 0 0 30px 0;">
+                  Organisé par Mohandiss Al Bassma
                 </p>
-                
-                <!-- QR Code -->
                 <div style="background-color: #ffffff; border-radius: 12px; padding: 16px; margin-bottom: 24px; display: inline-block;">
-                  <img src="${qrCodeUrl}" alt="Ticket QR Code" width="200" height="200" style="display: block;" />
+                  <img src="cid:ticket-qr" alt="QR code du billet" width="200" height="200" style="display: block;" />
                 </div>
-                
-                <div style="background-color: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
-                  <p style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">
-                    Ticket Code
+                <div style="background-color: #000000; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                  <p style="color: #86de76; font-size: 12px; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">
+                    Code du billet
                   </p>
                   <p style="color: #ffffff; font-size: 24px; font-weight: bold; margin: 0; font-family: monospace; letter-spacing: 2px;">
-                    ${ticketCode}
+                    ${code}
                   </p>
                 </div>
-                
                 <div style="margin-bottom: 24px;">
-                  <p style="color: #9ca3af; font-size: 12px; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 1px;">
-                    Attendee
+                  <p style="color: #86de76; font-size: 12px; margin: 0 0 4px 0; text-transform: uppercase; letter-spacing: 1px;">
+                    Spectateur
                   </p>
                   <p style="color: #ffffff; font-size: 18px; font-weight: 600; margin: 0;">
                     ${fullName}
                   </p>
                 </div>
-                
-                <p style="color: #6b7280; font-size: 14px; margin: 0 0 24px 0;">
+                <p style="color: #eaeaea; font-size: 14px; margin: 0 0 24px 0;">
                   ${formattedDate}
                 </p>
-                
-                <div style="border-top: 1px solid #374151; padding-top: 24px;">
-                  <p style="color: #9ca3af; font-size: 14px; margin: 0 0 16px 0;">
-                    Thank you for registering! Your digital ticket has been generated.
+                <div style="border-top: 1px solid #32b577; padding-top: 24px;">
+                  <p style="color: #eaeaea; font-size: 14px; margin: 0 0 16px 0;">
+                    Merci pour votre inscription ! Votre billet numérique est prêt.
                   </p>
-                  <p style="color: #059669; font-size: 13px; margin: 0; font-weight: 500;">
-                    📱 Present this QR code at the entrance
+                  <p style="color: #86de76; font-size: 13px; margin: 0; font-weight: 500;">
+                    📱 Présentez ce QR code à l'entrée
                   </p>
                 </div>
               </div>
             </div>
-            
-            <!-- Footer -->
-            <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 24px;">
-              © ${new Date().getFullYear()} Mohandiss Al Bassma Club. All rights reserved.
+            <p style="color: #264653; font-size: 12px; text-align: center; margin-top: 24px;">
+              © ${new Date().getFullYear()} Mohandiss Al Bassma Club. Tous droits réservés.
             </p>
           </div>
         </body>
@@ -111,21 +198,10 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
-
-    return new Response(JSON.stringify({ success: true, data: emailResponse }), {
-      status: 200,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
-  } catch (error: any) {
+    return json({ success: true, id: info.messageId ?? null });
+  } catch (error: unknown) {
     console.error("Error in send-ticket-email function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return json({ error: "Could not send the ticket email" }, 500);
   }
 };
 
